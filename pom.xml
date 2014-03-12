@@ -12,6 +12,7 @@
 
   <properties>
     <maven-compiler-plugin.version>3.1</maven-compiler-plugin.version>
+    <jaxb2-maven-plugin.version>1.5</jaxb2-maven-plugin.version>
     <antlr4-maven-plugin.version>4.2</antlr4-maven-plugin.version>
 
     <antlr4.version>4.2</antlr4.version>
@@ -43,12 +44,29 @@
       </plugin>
 
       <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>jaxb2-maven-plugin</artifactId>
+        <version>${jaxb2-maven-plugin.version}</version>
+        <executions>
+          <execution>
+            <id>xjc</id>
+            <goals>
+              <goal>xjc</goal>
+            </goals>
+          </execution>
+        </executions>
+        <configuration>
+          <packageName>robotoer</packageName>
+        </configuration>
+      </plugin>
+
+      <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-compiler-plugin</artifactId>
         <version>${maven-compiler-plugin.version}</version>
         <configuration>
-          <source>1.6</source>
-          <target>1.6</target>
+          <source>1.7</source>
+          <target>1.7</target>
         </configuration>
       </plugin>
     </plugins>
