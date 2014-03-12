@@ -40,6 +40,10 @@
  */
 grammar Java;
 
+@header {
+package robotoer;
+}
+
 // starting point for parsing a java file
 compilationUnit
     :   packageDeclaration? importDeclaration* typeDeclaration* EOF
