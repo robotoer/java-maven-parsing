@@ -20,16 +20,13 @@ public class Module {
   public static final String SOURCE_DIRECTORY = "src/main/java";
 
   private final String mPath;
-  private final String mName;
   private final Model mBuildScript;
   //private final Git mVersionControl;
 
   public Module(
-      final String path,
-      final String name
+      final String path
   ) throws JAXBException {
     mPath = path;
-    mName = name;
 
     // Load the pom file.
     {
@@ -37,7 +34,7 @@ public class Module {
 
       mBuildScript = (Model) context
           .createUnmarshaller()
-          .unmarshal(new File(String.format("%s/%s", path, name)));
+          .unmarshal(new File(String.format("%s/%s", path, "pom.xml")));
     }
   }
 
@@ -90,5 +87,16 @@ public class Module {
       parsed.add(parser.compilationUnit());
     }
     return parsed;
+  }
+
+  public static void main(String[] args) throws JAXBException, IOException {
+    final String moduleDirectory = new File(args[0]).getAbsolutePath();
+
+    final List<JavaParser.CompilationUnitContext> compilationUnits =
+        new Module(moduleDirectory).getCompilationUnits();
+    for (JavaParser.CompilationUnitContext compilationUnit : compilationUnits) {
+      compilationUnit.packageDeclaration().qualifiedName().Identifier();
+      compilationUnit.typeDeclaration();
+    }
   }
 }
