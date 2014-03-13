@@ -16,6 +16,7 @@ import com.google.common.collect.Sets;
 import org.antlr.v4.runtime.ANTLRFileStream;
 import org.antlr.v4.runtime.CommonTokenStream;
 import org.antlr.v4.runtime.Lexer;
+import org.antlr.v4.runtime.tree.ParseTree;
 import org.antlr.v4.runtime.tree.TerminalNode;
 import robotoer.ast.java.JavaLexer;
 import robotoer.ast.java.JavaParser;
@@ -111,36 +112,54 @@ public class Module {
 
   private static final class ClassAnnotationsTuple {
     private final String mClassName;
+    private final String mClassOrInterface;
     private final String mApiAudience;
     private final String mApiStability;
     private final String mInheritance;
+    private final String mVisibility;
+    private final String mExtensibility;
 
     private ClassAnnotationsTuple(
         final String className,
+        final String classOrInterface,
         final String apiAudience,
         final String apiStability,
-        final String inheritance
+        final String inheritance,
+        final String visibility,
+        final String extensibility
     ) {
       mClassName = className;
+      mClassOrInterface = classOrInterface;
       mApiAudience = apiAudience;
       mApiStability = apiStability;
       mInheritance = inheritance;
+      mVisibility = visibility;
+      mExtensibility = extensibility;
     }
 
     @Override
     public String toString() {
       return Objects.toStringHelper(ClassAnnotationsTuple.class)
           .add("ClassName", mClassName)
+          .add("ClassOrInterface", mClassOrInterface)
           .add("ApiAudience", mApiAudience)
           .add("ApiStability", mApiStability)
           .add("Inheritance", mInheritance)
+          .add("Visibility", mVisibility)
+          .add("Extensibility", mExtensibility)
           .toString();
     }
 
     @Override
     public int hashCode() {
       return Objects.hashCode(
-          mClassName, mApiAudience, mApiStability, mInheritance);
+          mClassName,
+          mClassOrInterface,
+          mApiAudience,
+          mApiStability,
+          mInheritance,
+          mVisibility,
+          mExtensibility);
     }
 
     @Override
@@ -152,15 +171,24 @@ public class Module {
       }
       final ClassAnnotationsTuple other = (ClassAnnotationsTuple) obj;
       return Objects.equal(this.mClassName, other.mClassName)
+          && Objects.equal(this.mClassOrInterface, other.mClassOrInterface)
           && Objects.equal(this.mApiAudience, other.mApiAudience)
           && Objects.equal(this.mApiStability, other.mApiStability)
-          && Objects.equal(this.mInheritance, other.mInheritance);
+          && Objects.equal(this.mInheritance, other.mInheritance)
+          && Objects.equal(this.mVisibility, other.mVisibility)
+          && Objects.equal(this.mExtensibility, other.mExtensibility);
     }
   }
 
+  private static final List<String> VISIBILITY_MODIFIERS =
+      Lists.newArrayList("public", "private", "protected");
+  private static final List<String> EXTENSIBILITY_MODIFIERS =
+      Lists.newArrayList("abstract", "final");
   private static ClassAnnotationsTuple getAnnotationsTuple(
       final String fullyQualifiedClassName,
-      final List<String> annotations
+      final String classOrInterface,
+      final List<String> annotations,
+      final List<String> modifiers
   ) {
     String audience = null;
     String stability = null;
@@ -175,21 +203,52 @@ public class Module {
       }
     }
 
+    String visibility = null;
+    String extensibility = null;
+    for (String modifier : modifiers) {
+      if (VISIBILITY_MODIFIERS.contains(modifier)) {
+        visibility = modifier;
+      } else if (EXTENSIBILITY_MODIFIERS.contains(modifier)) {
+        extensibility = modifier;
+      }
+    }
+    visibility = (null != visibility) ? visibility : "package private";
+    extensibility = (null != extensibility) ? extensibility : "extensible";
+
+
     return new ClassAnnotationsTuple(
-        fullyQualifiedClassName, audience, stability, inheritance);
+        fullyQualifiedClassName,
+        classOrInterface,
+        audience,
+        stability,
+        inheritance,
+        visibility,
+        extensibility);
   }
 
   private static List<String> getAnnotations(
       final ClassOrInterfaceModifierContext classOrInterfaceModifierContext
   ) {
-    final List<String> annotations = Lists.newArrayList();
     final AnnotationContext annotationContext = classOrInterfaceModifierContext.annotation();
     if (null != annotationContext) {
-      annotations.add(Joiner.on('.').join(Lists.transform(
+      return Lists.newArrayList(Joiner.on('.').join(Lists.transform(
           annotationContext.annotationName().qualifiedName().Identifier(),
           new TerminalNodeToText())));
+    } else {
+      return Lists.newArrayList();
     }
-    return annotations;
+  }
+
+  private static List<String> getModifiers(
+      final ClassOrInterfaceModifierContext classOrInterfaceModifierContext
+  ) {
+    final List<String> modifiers = Lists.newArrayList();
+    for (ParseTree parseTree : classOrInterfaceModifierContext.children) {
+      if (parseTree instanceof TerminalNode) {
+        modifiers.add(((TerminalNode) parseTree).getSymbol().getText());
+      }
+    }
+    return modifiers;
   }
 
   private static Set<ClassAnnotationsTuple> recurse(
@@ -198,34 +257,38 @@ public class Module {
   ) {
     final Set<ClassAnnotationsTuple> classAnnotations = Sets.newHashSet();
 
+    final List<String> annotations = Lists.newArrayList();
+    final List<String> modifiers = Lists.newArrayList();
     for (ClassBodyDeclarationContext classBodyDeclarationContext
         : classBodyContext.classBodyDeclaration()) {
       for (ModifierContext modifierContext : classBodyDeclarationContext.modifier()) {
         final ClassOrInterfaceModifierContext classOrInterfaceModifierContext =
             modifierContext.classOrInterfaceModifier();
         if (null != classOrInterfaceModifierContext) {
-          final List<String> annotations = getAnnotations(classOrInterfaceModifierContext);
-          final MemberDeclarationContext memberDeclarationContext =
-              classBodyDeclarationContext.memberDeclaration();
-          if (null != memberDeclarationContext) {
-            final ClassDeclarationContext innerClassDeclarationContext =
-                memberDeclarationContext.classDeclaration();
-            final InterfaceDeclarationContext innerInterfaceDeclarationContext =
-                memberDeclarationContext.interfaceDeclaration();
-            if (null != innerClassDeclarationContext) {
-              final String classString =
-                  relativePath + "." + innerClassDeclarationContext.Identifier();
-              classAnnotations.add(getAnnotationsTuple(classString, annotations));
-              classAnnotations.addAll(
-                  recurse(classString, innerClassDeclarationContext.classBody()));
-            } else if (null != innerInterfaceDeclarationContext) {
-              final String interfaceString =
-                  relativePath + "." + innerInterfaceDeclarationContext.Identifier();
-              classAnnotations.add(getAnnotationsTuple(interfaceString, annotations));
-              classAnnotations.addAll(
-                  recurse(interfaceString, innerInterfaceDeclarationContext.interfaceBody()));
-            }
-          }
+          annotations.addAll(getAnnotations(classOrInterfaceModifierContext));
+          modifiers.addAll(getModifiers(classOrInterfaceModifierContext));
+        }
+      }
+      final MemberDeclarationContext memberDeclarationContext =
+          classBodyDeclarationContext.memberDeclaration();
+      if (null != memberDeclarationContext) {
+        final ClassDeclarationContext innerClassDeclarationContext =
+            memberDeclarationContext.classDeclaration();
+        final InterfaceDeclarationContext innerInterfaceDeclarationContext =
+            memberDeclarationContext.interfaceDeclaration();
+        if (null != innerClassDeclarationContext) {
+          final String classString =
+              relativePath + "." + innerClassDeclarationContext.Identifier();
+          classAnnotations.add(getAnnotationsTuple(classString, "class", annotations, modifiers));
+          classAnnotations.addAll(
+              recurse(classString, innerClassDeclarationContext.classBody()));
+        } else if (null != innerInterfaceDeclarationContext) {
+          final String interfaceString =
+              relativePath + "." + innerInterfaceDeclarationContext.Identifier();
+          classAnnotations.add(
+              getAnnotationsTuple(interfaceString, "interface", annotations, modifiers));
+          classAnnotations.addAll(
+              recurse(interfaceString, innerInterfaceDeclarationContext.interfaceBody()));
         }
       }
     }
@@ -240,32 +303,36 @@ public class Module {
 
     for (InterfaceBodyDeclarationContext interfaceBodyDeclarationContext
         : interfaceBodyContext.interfaceBodyDeclaration()) {
+      final List<String> annotations = Lists.newArrayList();
+      final List<String> modifiers = Lists.newArrayList();
       for (ModifierContext modifierContext : interfaceBodyDeclarationContext.modifier()) {
         final ClassOrInterfaceModifierContext classOrInterfaceModifierContext =
             modifierContext.classOrInterfaceModifier();
         if (null != classOrInterfaceModifierContext) {
-          final List<String> annotations = getAnnotations(classOrInterfaceModifierContext);
-          final InterfaceMemberDeclarationContext interfaceMemberDeclarationContext =
-              interfaceBodyDeclarationContext.interfaceMemberDeclaration();
-          if (null != interfaceMemberDeclarationContext) {
-            final ClassDeclarationContext innerClassDeclarationContext =
-                interfaceMemberDeclarationContext.classDeclaration();
-            final InterfaceDeclarationContext innerInterfaceDeclarationContext =
-                interfaceMemberDeclarationContext.interfaceDeclaration();
-            if (null != innerClassDeclarationContext) {
-              final String classString =
-                  relativePath + "." + innerClassDeclarationContext.Identifier();
-              classAnnotations.add(getAnnotationsTuple(classString, annotations));
-              classAnnotations.addAll(
-                  recurse(classString, innerClassDeclarationContext.classBody()));
-            } else if (null != innerInterfaceDeclarationContext) {
-              final String interfaceString =
-                  relativePath + "." + innerInterfaceDeclarationContext.Identifier();
-              classAnnotations.add(getAnnotationsTuple(interfaceString, annotations));
-              classAnnotations.addAll(
-                  recurse(interfaceString, innerInterfaceDeclarationContext.interfaceBody()));
-            }
-          }
+          annotations.addAll(getAnnotations(classOrInterfaceModifierContext));
+          modifiers.addAll(getModifiers(classOrInterfaceModifierContext));
+        }
+      }
+      final InterfaceMemberDeclarationContext interfaceMemberDeclarationContext =
+          interfaceBodyDeclarationContext.interfaceMemberDeclaration();
+      if (null != interfaceMemberDeclarationContext) {
+        final ClassDeclarationContext innerClassDeclarationContext =
+            interfaceMemberDeclarationContext.classDeclaration();
+        final InterfaceDeclarationContext innerInterfaceDeclarationContext =
+            interfaceMemberDeclarationContext.interfaceDeclaration();
+        if (null != innerClassDeclarationContext) {
+          final String classString =
+              relativePath + "." + innerClassDeclarationContext.Identifier();
+          classAnnotations.add(getAnnotationsTuple(classString, "class",annotations, modifiers));
+          classAnnotations.addAll(
+              recurse(classString, innerClassDeclarationContext.classBody()));
+        } else if (null != innerInterfaceDeclarationContext) {
+          final String interfaceString =
+              relativePath + "." + innerInterfaceDeclarationContext.Identifier();
+          classAnnotations.add(
+              getAnnotationsTuple(interfaceString, "interface", annotations, modifiers));
+          classAnnotations.addAll(
+              recurse(interfaceString, innerInterfaceDeclarationContext.interfaceBody()));
         }
       }
     }
@@ -274,7 +341,7 @@ public class Module {
 
 
   public static void main(String[] args) throws IOException {
-    final Module module = new Module("/home/ajprax/src/kiji/kiji-mapreduce/kiji-mapreduce/");
+    final Module module = new Module("/home/ajprax/src/kiji/kiji-scoring/");
     final List<JavaParser.CompilationUnitContext> contexts = module.getCompilationUnits();
     final Set<ClassAnnotationsTuple> classAnnotations = Sets.newHashSet();
     for (CompilationUnitContext compilationUnitContext : contexts) {
@@ -285,11 +352,12 @@ public class Module {
       for (TypeDeclarationContext typeDeclarationContext
           : compilationUnitContext.typeDeclaration()) {
         final List<String> annotations = Lists.newArrayList();
+        final List<String> modifiers = Lists.newArrayList();
         for (ClassOrInterfaceModifierContext classOrInterfaceModifierContext
             : typeDeclarationContext.classOrInterfaceModifier()) {
           annotations.addAll(getAnnotations(classOrInterfaceModifierContext));
+          modifiers.addAll(getModifiers(classOrInterfaceModifierContext));
         }
-
         final ClassDeclarationContext classDeclarationContext =
             typeDeclarationContext.classDeclaration();
         final InterfaceDeclarationContext interfaceDeclarationContext =
@@ -297,12 +365,13 @@ public class Module {
 
         if (null != classDeclarationContext) {
           final String classString = packageString + "." + classDeclarationContext.Identifier();
-          classAnnotations.add(getAnnotationsTuple(classString, annotations));
+          classAnnotations.add(getAnnotationsTuple(classString, "class", annotations, modifiers));
           classAnnotations.addAll(recurse(classString, classDeclarationContext.classBody()));
         } else if (null != interfaceDeclarationContext) {
           final String interfaceString =
               packageString + "." + interfaceDeclarationContext.Identifier();
-          classAnnotations.add(getAnnotationsTuple(interfaceString, annotations));
+          classAnnotations.add(
+              getAnnotationsTuple(interfaceString, "interface", annotations, modifiers));
           classAnnotations.addAll(
               recurse(interfaceString, interfaceDeclarationContext.interfaceBody()));
         }
@@ -312,14 +381,20 @@ public class Module {
     final File out = new File("/home/ajprax/tmp/annotations.csv");
     final PrintWriter pw = new PrintWriter(out);
     try {
-      pw.println("ClassName,@ApiAudience,@ApiStability,@Inheritance");
+      pw.println("JavaVisibility,JavaExtensibility,ClassOrInterface,FullyQualifiedName,"
+          + "@ApiAudience,@ApiStability,@Inheritance");
       for (ClassAnnotationsTuple t : classAnnotations) {
-        final String className = t.mClassName;
         final String apiAudience = null != t.mApiAudience ? t.mApiAudience : "";
         final String apiStability = null != t.mApiStability ? t.mApiStability : "";
         final String inheritance = null != t.mInheritance ? t.mInheritance : "";
-        final String line =
-            String.format("%s,%s,%s,%s", className, apiAudience, apiStability, inheritance);
+        final String line = String.format("%s,%s,%s,%s,%s,%s,%s",
+            t.mVisibility,
+            t.mExtensibility,
+            t.mClassOrInterface,
+            t.mClassName,
+            apiAudience,
+            apiStability,
+            inheritance);
         pw.println(line);
       }
     } finally {
