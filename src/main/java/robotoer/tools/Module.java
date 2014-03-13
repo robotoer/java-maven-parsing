@@ -54,6 +54,7 @@ public class Module {
       final boolean recursive
   ) {
     final List<File> matches = Lists.newArrayList();
+    System.out.println("finding files in: " + directory.toString());
     for (File file : directory.listFiles()) {
       final Matcher matcher = pattern.matcher(file.getName());
 
@@ -341,64 +342,79 @@ public class Module {
 
 
   public static void main(String[] args) throws IOException {
-    final Module module = new Module("/home/ajprax/src/kiji/kiji-scoring/");
-    final List<JavaParser.CompilationUnitContext> contexts = module.getCompilationUnits();
-    final Set<ClassAnnotationsTuple> classAnnotations = Sets.newHashSet();
-    for (CompilationUnitContext compilationUnitContext : contexts) {
-      final String packageString = Joiner.on('.').join(Lists.transform(
-          compilationUnitContext.packageDeclaration().qualifiedName().Identifier(),
-          new TerminalNodeToText()));
+    final List<String> projects = Lists.newArrayList(
+        "kiji-schema/kiji-schema",
+        "kiji-mapreduce/kiji-mapreduce",
+        "kiji-rest/kiji-rest",
+        "kiji-scoring",
+        "kiji-model-repository/kiji-model-repository",
+        "kiji-mapreduce-lib/kiji-mapreduce-lib",
+        "kiji-hive-adapter/kiji-hive-adapter",
+        "kiji-hive-adapter/kiji-hive-tools",
+        "kiji-delegation",
+        "kiji-checkin",
+        "kiji-common-flags");
+    for (String project : projects) {
+      final Module module = new Module("/home/ajprax/src/kiji/" + project);
+      final List<JavaParser.CompilationUnitContext> contexts = module.getCompilationUnits();
+      final Set<ClassAnnotationsTuple> classAnnotations = Sets.newHashSet();
+      for (CompilationUnitContext compilationUnitContext : contexts) {
+        final String packageString = Joiner.on('.').join(Lists.transform(
+            compilationUnitContext.packageDeclaration().qualifiedName().Identifier(),
+            new TerminalNodeToText()));
 
-      for (TypeDeclarationContext typeDeclarationContext
-          : compilationUnitContext.typeDeclaration()) {
-        final List<String> annotations = Lists.newArrayList();
-        final List<String> modifiers = Lists.newArrayList();
-        for (ClassOrInterfaceModifierContext classOrInterfaceModifierContext
-            : typeDeclarationContext.classOrInterfaceModifier()) {
-          annotations.addAll(getAnnotations(classOrInterfaceModifierContext));
-          modifiers.addAll(getModifiers(classOrInterfaceModifierContext));
-        }
-        final ClassDeclarationContext classDeclarationContext =
-            typeDeclarationContext.classDeclaration();
-        final InterfaceDeclarationContext interfaceDeclarationContext =
-            typeDeclarationContext.interfaceDeclaration();
+        for (TypeDeclarationContext typeDeclarationContext
+            : compilationUnitContext.typeDeclaration()) {
+          final List<String> annotations = Lists.newArrayList();
+          final List<String> modifiers = Lists.newArrayList();
+          for (ClassOrInterfaceModifierContext classOrInterfaceModifierContext
+              : typeDeclarationContext.classOrInterfaceModifier()) {
+            annotations.addAll(getAnnotations(classOrInterfaceModifierContext));
+            modifiers.addAll(getModifiers(classOrInterfaceModifierContext));
+          }
+          final ClassDeclarationContext classDeclarationContext =
+              typeDeclarationContext.classDeclaration();
+          final InterfaceDeclarationContext interfaceDeclarationContext =
+              typeDeclarationContext.interfaceDeclaration();
 
-        if (null != classDeclarationContext) {
-          final String classString = packageString + "." + classDeclarationContext.Identifier();
-          classAnnotations.add(getAnnotationsTuple(classString, "class", annotations, modifiers));
-          classAnnotations.addAll(recurse(classString, classDeclarationContext.classBody()));
-        } else if (null != interfaceDeclarationContext) {
-          final String interfaceString =
-              packageString + "." + interfaceDeclarationContext.Identifier();
-          classAnnotations.add(
-              getAnnotationsTuple(interfaceString, "interface", annotations, modifiers));
-          classAnnotations.addAll(
-              recurse(interfaceString, interfaceDeclarationContext.interfaceBody()));
+          if (null != classDeclarationContext) {
+            final String classString = packageString + "." + classDeclarationContext.Identifier();
+            classAnnotations.add(getAnnotationsTuple(classString, "class", annotations, modifiers));
+            classAnnotations.addAll(recurse(classString, classDeclarationContext.classBody()));
+          } else if (null != interfaceDeclarationContext) {
+            final String interfaceString =
+                packageString + "." + interfaceDeclarationContext.Identifier();
+            classAnnotations.add(
+                getAnnotationsTuple(interfaceString, "interface", annotations, modifiers));
+            classAnnotations.addAll(
+                recurse(interfaceString, interfaceDeclarationContext.interfaceBody()));
+          }
         }
       }
-    }
 
-    final File out = new File("/home/ajprax/tmp/annotations.csv");
-    final PrintWriter pw = new PrintWriter(out);
-    try {
-      pw.println("JavaVisibility,JavaExtensibility,ClassOrInterface,FullyQualifiedName,"
-          + "@ApiAudience,@ApiStability,@Inheritance");
-      for (ClassAnnotationsTuple t : classAnnotations) {
-        final String apiAudience = null != t.mApiAudience ? t.mApiAudience : "";
-        final String apiStability = null != t.mApiStability ? t.mApiStability : "";
-        final String inheritance = null != t.mInheritance ? t.mInheritance : "";
-        final String line = String.format("%s,%s,%s,%s,%s,%s,%s",
-            t.mVisibility,
-            t.mExtensibility,
-            t.mClassOrInterface,
-            t.mClassName,
-            apiAudience,
-            apiStability,
-            inheritance);
-        pw.println(line);
+      final File out =
+          new File(String.format("/home/ajprax/tmp/annotations/%s.csv", project.replace('/','.')));
+      final PrintWriter pw = new PrintWriter(out);
+      try {
+        pw.println("JavaVisibility,JavaExtensibility,ClassOrInterface,FullyQualifiedName,"
+            + "@ApiAudience,@ApiStability,@Inheritance");
+        for (ClassAnnotationsTuple t : classAnnotations) {
+          final String apiAudience = null != t.mApiAudience ? t.mApiAudience : "";
+          final String apiStability = null != t.mApiStability ? t.mApiStability : "";
+          final String inheritance = null != t.mInheritance ? t.mInheritance : "";
+          final String line = String.format("%s,%s,%s,%s,%s,%s,%s",
+              t.mVisibility,
+              t.mExtensibility,
+              t.mClassOrInterface,
+              t.mClassName,
+              apiAudience,
+              apiStability,
+              inheritance);
+          pw.println(line);
+        }
+      } finally {
+        pw.close();
       }
-    } finally {
-      pw.close();
     }
   }
 }
