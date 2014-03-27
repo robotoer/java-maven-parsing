@@ -14,6 +14,7 @@
     <maven-compiler-plugin.version>3.1</maven-compiler-plugin.version>
     <jaxb2-maven-plugin.version>1.5</jaxb2-maven-plugin.version>
     <antlr4-maven-plugin.version>4.2</antlr4-maven-plugin.version>
+    <maven-shade-plugin.version>2.2</maven-shade-plugin.version>
 
     <antlr4.version>4.2</antlr4.version>
     <guava.version>16.0.1</guava.version>
@@ -76,6 +77,20 @@
           <source>1.6</source>
           <target>1.6</target>
         </configuration>
+      </plugin>
+
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-shade-plugin</artifactId>
+        <version>${maven-shade-plugin.version}</version>
+        <executions>
+          <execution>
+            <phase>package</phase>
+            <goals>
+              <goal>shade</goal>
+            </goals>
+          </execution>
+        </executions>
       </plugin>
     </plugins>
   </build>

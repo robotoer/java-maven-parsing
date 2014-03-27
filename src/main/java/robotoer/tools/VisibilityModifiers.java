@@ -5,99 +5,18 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.List;
 import java.util.Set;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 import com.google.common.base.Function;
 import com.google.common.base.Joiner;
 import com.google.common.base.Objects;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
-import org.antlr.v4.runtime.ANTLRFileStream;
-import org.antlr.v4.runtime.CommonTokenStream;
-import org.antlr.v4.runtime.Lexer;
 import org.antlr.v4.runtime.tree.ParseTree;
 import org.antlr.v4.runtime.tree.TerminalNode;
-import robotoer.ast.java.JavaLexer;
 import robotoer.ast.java.JavaParser;
-import robotoer.ast.java.JavaParser.AnnotationContext;
-import robotoer.ast.java.JavaParser.ClassBodyContext;
-import robotoer.ast.java.JavaParser.ClassBodyDeclarationContext;
-import robotoer.ast.java.JavaParser.ClassDeclarationContext;
-import robotoer.ast.java.JavaParser.ClassOrInterfaceModifierContext;
-import robotoer.ast.java.JavaParser.CompilationUnitContext;
-import robotoer.ast.java.JavaParser.InterfaceBodyContext;
-import robotoer.ast.java.JavaParser.InterfaceBodyDeclarationContext;
-import robotoer.ast.java.JavaParser.InterfaceDeclarationContext;
-import robotoer.ast.java.JavaParser.InterfaceMemberDeclarationContext;
-import robotoer.ast.java.JavaParser.MemberDeclarationContext;
-import robotoer.ast.java.JavaParser.ModifierContext;
-import robotoer.ast.java.JavaParser.TypeDeclarationContext;
+import robotoer.project.Module;
 
-public class Module {
-  public static final String SOURCE_DIRECTORY = "src/main/java";
-
-  private final String mPath;
-  //private final Git mVersionControl;
-
-  public Module(
-      final String path
-  ) {
-    mPath = path;
-  }
-
-  public List<File> findFiles(
-      final File directory,
-      final Pattern pattern,
-      final boolean matchFiles,
-      final boolean matchDirectories,
-      final boolean recursive
-  ) {
-    final List<File> matches = Lists.newArrayList();
-    System.out.println("finding files in: " + directory.toString());
-    for (File file : directory.listFiles()) {
-      final Matcher matcher = pattern.matcher(file.getName());
-
-      if (file.isDirectory()) {
-        if (matchDirectories && matcher.matches()) {
-          matches.add(file);
-        }
-
-        // Recurse into subdirectories.
-        if (recursive) {
-          final List<File> subdirectoryMatches = findFiles(
-              file,
-              pattern,
-              matchFiles,
-              matchDirectories,
-              true
-          );
-          matches.addAll(subdirectoryMatches);
-        }
-      } else {
-        if (matchFiles && matcher.matches()) {
-          matches.add(file);
-        }
-      }
-    }
-    return matches;
-  }
-
-  public List<JavaParser.CompilationUnitContext> getCompilationUnits() throws IOException {
-    final File rootDirectory = new File(String.format("%s/%s", mPath, SOURCE_DIRECTORY));
-    final List<File> javaFiles =
-        findFiles(rootDirectory, Pattern.compile(".*\\.java"), true, false, true);
-
-    final List<JavaParser.CompilationUnitContext> parsed = Lists.newArrayList();
-    for (File javaFile : javaFiles) {
-      final Lexer lexer = new JavaLexer(new ANTLRFileStream(javaFile.getAbsolutePath()));
-      final CommonTokenStream tokens = new CommonTokenStream(lexer);
-      final JavaParser parser = new JavaParser(tokens);
-      parsed.add(parser.compilationUnit());
-    }
-    return parsed;
-  }
-
+public class VisibilityModifiers {
   private static final class TerminalNodeToText implements Function<TerminalNode, String> {
 
     @Override
@@ -228,9 +147,9 @@ public class Module {
   }
 
   private static List<String> getAnnotations(
-      final ClassOrInterfaceModifierContext classOrInterfaceModifierContext
+      final JavaParser.ClassOrInterfaceModifierContext classOrInterfaceModifierContext
   ) {
-    final AnnotationContext annotationContext = classOrInterfaceModifierContext.annotation();
+    final JavaParser.AnnotationContext annotationContext = classOrInterfaceModifierContext.annotation();
     if (null != annotationContext) {
       return Lists.newArrayList(Joiner.on('.').join(Lists.transform(
           annotationContext.annotationName().qualifiedName().Identifier(),
@@ -241,7 +160,7 @@ public class Module {
   }
 
   private static List<String> getModifiers(
-      final ClassOrInterfaceModifierContext classOrInterfaceModifierContext
+      final JavaParser.ClassOrInterfaceModifierContext classOrInterfaceModifierContext
   ) {
     final List<String> modifiers = Lists.newArrayList();
     for (ParseTree parseTree : classOrInterfaceModifierContext.children) {
@@ -254,28 +173,28 @@ public class Module {
 
   private static Set<ClassAnnotationsTuple> recurse(
       final String relativePath,
-      final ClassBodyContext classBodyContext
+      final JavaParser.ClassBodyContext classBodyContext
   ) {
     final Set<ClassAnnotationsTuple> classAnnotations = Sets.newHashSet();
 
     final List<String> annotations = Lists.newArrayList();
     final List<String> modifiers = Lists.newArrayList();
-    for (ClassBodyDeclarationContext classBodyDeclarationContext
+    for (JavaParser.ClassBodyDeclarationContext classBodyDeclarationContext
         : classBodyContext.classBodyDeclaration()) {
-      for (ModifierContext modifierContext : classBodyDeclarationContext.modifier()) {
-        final ClassOrInterfaceModifierContext classOrInterfaceModifierContext =
+      for (JavaParser.ModifierContext modifierContext : classBodyDeclarationContext.modifier()) {
+        final JavaParser.ClassOrInterfaceModifierContext classOrInterfaceModifierContext =
             modifierContext.classOrInterfaceModifier();
         if (null != classOrInterfaceModifierContext) {
           annotations.addAll(getAnnotations(classOrInterfaceModifierContext));
           modifiers.addAll(getModifiers(classOrInterfaceModifierContext));
         }
       }
-      final MemberDeclarationContext memberDeclarationContext =
+      final JavaParser.MemberDeclarationContext memberDeclarationContext =
           classBodyDeclarationContext.memberDeclaration();
       if (null != memberDeclarationContext) {
-        final ClassDeclarationContext innerClassDeclarationContext =
+        final JavaParser.ClassDeclarationContext innerClassDeclarationContext =
             memberDeclarationContext.classDeclaration();
-        final InterfaceDeclarationContext innerInterfaceDeclarationContext =
+        final JavaParser.InterfaceDeclarationContext innerInterfaceDeclarationContext =
             memberDeclarationContext.interfaceDeclaration();
         if (null != innerClassDeclarationContext) {
           final String classString =
@@ -298,28 +217,28 @@ public class Module {
 
   private static Set<ClassAnnotationsTuple> recurse(
       final String relativePath,
-      final InterfaceBodyContext interfaceBodyContext
+      final JavaParser.InterfaceBodyContext interfaceBodyContext
   ) {
     final Set<ClassAnnotationsTuple> classAnnotations = Sets.newHashSet();
 
-    for (InterfaceBodyDeclarationContext interfaceBodyDeclarationContext
+    for (JavaParser.InterfaceBodyDeclarationContext interfaceBodyDeclarationContext
         : interfaceBodyContext.interfaceBodyDeclaration()) {
       final List<String> annotations = Lists.newArrayList();
       final List<String> modifiers = Lists.newArrayList();
-      for (ModifierContext modifierContext : interfaceBodyDeclarationContext.modifier()) {
-        final ClassOrInterfaceModifierContext classOrInterfaceModifierContext =
+      for (JavaParser.ModifierContext modifierContext : interfaceBodyDeclarationContext.modifier()) {
+        final JavaParser.ClassOrInterfaceModifierContext classOrInterfaceModifierContext =
             modifierContext.classOrInterfaceModifier();
         if (null != classOrInterfaceModifierContext) {
           annotations.addAll(getAnnotations(classOrInterfaceModifierContext));
           modifiers.addAll(getModifiers(classOrInterfaceModifierContext));
         }
       }
-      final InterfaceMemberDeclarationContext interfaceMemberDeclarationContext =
+      final JavaParser.InterfaceMemberDeclarationContext interfaceMemberDeclarationContext =
           interfaceBodyDeclarationContext.interfaceMemberDeclaration();
       if (null != interfaceMemberDeclarationContext) {
-        final ClassDeclarationContext innerClassDeclarationContext =
+        final JavaParser.ClassDeclarationContext innerClassDeclarationContext =
             interfaceMemberDeclarationContext.classDeclaration();
-        final InterfaceDeclarationContext innerInterfaceDeclarationContext =
+        final JavaParser.InterfaceDeclarationContext innerInterfaceDeclarationContext =
             interfaceMemberDeclarationContext.interfaceDeclaration();
         if (null != innerClassDeclarationContext) {
           final String classString =
@@ -340,7 +259,6 @@ public class Module {
     return classAnnotations;
   }
 
-
   public static void main(String[] args) throws IOException {
     final List<String> projects = Lists.newArrayList(
         "kiji-schema/kiji-schema",
@@ -358,23 +276,23 @@ public class Module {
       final Module module = new Module("/home/ajprax/src/kiji/" + project);
       final List<JavaParser.CompilationUnitContext> contexts = module.getCompilationUnits();
       final Set<ClassAnnotationsTuple> classAnnotations = Sets.newHashSet();
-      for (CompilationUnitContext compilationUnitContext : contexts) {
+      for (JavaParser.CompilationUnitContext compilationUnitContext : contexts) {
         final String packageString = Joiner.on('.').join(Lists.transform(
             compilationUnitContext.packageDeclaration().qualifiedName().Identifier(),
             new TerminalNodeToText()));
 
-        for (TypeDeclarationContext typeDeclarationContext
+        for (JavaParser.TypeDeclarationContext typeDeclarationContext
             : compilationUnitContext.typeDeclaration()) {
           final List<String> annotations = Lists.newArrayList();
           final List<String> modifiers = Lists.newArrayList();
-          for (ClassOrInterfaceModifierContext classOrInterfaceModifierContext
+          for (JavaParser.ClassOrInterfaceModifierContext classOrInterfaceModifierContext
               : typeDeclarationContext.classOrInterfaceModifier()) {
             annotations.addAll(getAnnotations(classOrInterfaceModifierContext));
             modifiers.addAll(getModifiers(classOrInterfaceModifierContext));
           }
-          final ClassDeclarationContext classDeclarationContext =
+          final JavaParser.ClassDeclarationContext classDeclarationContext =
               typeDeclarationContext.classDeclaration();
-          final InterfaceDeclarationContext interfaceDeclarationContext =
+          final JavaParser.InterfaceDeclarationContext interfaceDeclarationContext =
               typeDeclarationContext.interfaceDeclaration();
 
           if (null != classDeclarationContext) {
