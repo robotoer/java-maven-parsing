@@ -39,4 +39,8 @@ public class Module {
     }
     return parsed;
   }
+
+  public BuildDefinition getBuildDefinition() {
+    return null;
+  }
 }

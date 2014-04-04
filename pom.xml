@@ -18,6 +18,7 @@
 
     <antlr4.version>4.2</antlr4.version>
     <guava.version>16.0.1</guava.version>
+    <junit.version>4.11</junit.version>
   </properties>
 
   <dependencies>
@@ -33,6 +34,14 @@
       <artifactId>guava</artifactId>
       <version>${guava.version}</version>
       <scope>compile</scope>
+    </dependency>
+
+
+    <dependency>
+      <groupId>junit</groupId>
+      <artifactId>junit</artifactId>
+      <version>${junit.version}</version>
+      <scope>test</scope>
     </dependency>
   </dependencies>
 

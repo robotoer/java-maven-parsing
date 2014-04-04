@@ -271,7 +271,8 @@ public class VisibilityModifiers {
         "kiji-hive-adapter/kiji-hive-tools",
         "kiji-delegation",
         "kiji-checkin",
-        "kiji-common-flags");
+        "kiji-common-flags"
+    );
     for (String project : projects) {
       final Module module = new Module("/home/ajprax/src/kiji/" + project);
       final List<JavaParser.CompilationUnitContext> contexts = module.getCompilationUnits();
