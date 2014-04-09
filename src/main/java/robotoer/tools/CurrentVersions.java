@@ -17,7 +17,7 @@ public class CurrentVersions {
       final String moduleName = buildDefinition.getName();
       final String moduleVersion = buildDefinition.getVersion();
 
-      
+      System.out.println(String.format("%s: %s", moduleName, moduleVersion));
     }
   }
 }
