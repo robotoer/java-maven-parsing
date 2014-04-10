@@ -36,7 +36,9 @@ public class Operation {
     private String mName;
     private ImmutableMap.Builder<String, TypeOrClass> mParameterTypesBuilder;
 
-    public Builder() { }
+    public Builder() {
+      mParameterTypesBuilder = ImmutableMap.builder();
+    }
 
     public String getName() {
       return mName;

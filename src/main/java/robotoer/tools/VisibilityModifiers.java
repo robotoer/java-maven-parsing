@@ -3,6 +3,8 @@ package robotoer.tools;
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.List;
 import java.util.Set;
 
@@ -274,7 +276,7 @@ public class VisibilityModifiers {
         "kiji-common-flags"
     );
     for (String project : projects) {
-      final Module module = new Module("/home/ajprax/src/kiji/" + project);
+      final Module module = new Module(Paths.get("/home/ajprax/src/kiji/" + project));
       final List<JavaParser.CompilationUnitContext> contexts = module.getCompilationUnits();
       final Set<ClassAnnotationsTuple> classAnnotations = Sets.newHashSet();
       for (JavaParser.CompilationUnitContext compilationUnitContext : contexts) {

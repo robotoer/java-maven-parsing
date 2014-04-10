@@ -44,7 +44,9 @@ public class Api {
     private String mName;
     private ImmutableList.Builder<Operation> mOperationsBuilder;
 
-    public Builder() { }
+    public Builder() {
+      mOperationsBuilder = ImmutableList.builder();
+    }
     public Builder(final Builder other) {
       mName = other.mName;
       mOperationsBuilder = other.mOperationsBuilder;
