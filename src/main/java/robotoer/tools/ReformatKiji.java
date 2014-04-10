@@ -3,14 +3,16 @@ package robotoer.tools;
 import java.io.IOException;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
-import java.nio.file.OpenOption;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import difflib.Delta;
 import difflib.DiffUtils;
@@ -29,12 +31,15 @@ public class ReformatKiji {
     // Get all java files from Kiji.
     final Workspace workspace = Workspace.fromPath(kijiDirectory);
     for (Module module : workspace.getModules()) {
-      for (JavaParser.CompilationUnitContext compilationUnit : module.getCompilationUnits()) {
-        final List<String> before = null;
-        final List<String> after = null;
+      for (Map.Entry<Path, JavaParser.CompilationUnitContext> entry
+          : module.getCompilationUnits().entrySet()) {
+        final Path javaFile = entry.getKey();
+        final JavaParser.CompilationUnitContext compilationUnit = entry.getValue();
 
         // Reformat all java file.
-        final String reformatted = JavaPrettyPrinter.format(compilationUnit);
+        final List<String> before = Files.readAllLines(javaFile, Charset.forName("UTF-8"));
+        final List<String> after =
+            ImmutableList.copyOf(JavaPrettyPrinter.format(compilationUnit).split("\\r?\\n"));
 
         // Diff the before and after.
         final Patch<String> diff = DiffUtils.diff(before, after);
@@ -45,7 +50,10 @@ public class ReformatKiji {
     }
   }
 
-  private static void writeDiff(Path outputDirectory, Patch<String> diff) throws IOException {
+  private static void writeDiff(
+      final Path outputDirectory,
+      final Patch<String> diff
+  ) throws IOException {
     if (Files.exists(outputDirectory)) {
       Files.createDirectory(outputDirectory);
     }
@@ -59,7 +67,7 @@ public class ReformatKiji {
         new Function<Delta<String>, String>() {
           @Override
           public String apply(Delta<String> input) {
-            return null;
+            return input.toString();
           }
         }
     );

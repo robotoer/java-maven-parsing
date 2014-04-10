@@ -1,5 +1,7 @@
 package robotoer.project;
 
+import java.io.IOException;
+
 import com.google.common.collect.Lists;
 import org.junit.Assert;
 import org.junit.Test;
@@ -22,7 +24,7 @@ public class WorkspaceTest {
   }
 
   @Test
-  public void testFromPath() {
+  public void testFromPath() throws IOException {
     final Workspace expected = generateTestWorkspace();
     final Workspace actual = Workspace.fromPath("");
     Assert.assertEquals(expected, actual);

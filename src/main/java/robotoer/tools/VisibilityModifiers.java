@@ -6,6 +6,7 @@ import java.io.PrintWriter;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import com.google.common.base.Function;
@@ -277,9 +278,9 @@ public class VisibilityModifiers {
     );
     for (String project : projects) {
       final Module module = new Module(Paths.get("/home/ajprax/src/kiji/" + project));
-      final List<JavaParser.CompilationUnitContext> contexts = module.getCompilationUnits();
+      final Map<Path, JavaParser.CompilationUnitContext> contexts = module.getCompilationUnits();
       final Set<ClassAnnotationsTuple> classAnnotations = Sets.newHashSet();
-      for (JavaParser.CompilationUnitContext compilationUnitContext : contexts) {
+      for (JavaParser.CompilationUnitContext compilationUnitContext : contexts.values()) {
         final String packageString = Joiner.on('.').join(Lists.transform(
             compilationUnitContext.packageDeclaration().qualifiedName().Identifier(),
             new TerminalNodeToText()));

@@ -10,9 +10,11 @@ import java.nio.file.Paths;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.List;
+import java.util.Map;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import org.antlr.v4.runtime.ANTLRFileStream;
 import org.antlr.v4.runtime.CommonTokenStream;
@@ -58,7 +60,9 @@ public class Module {
     }
   }
 
-  public List<JavaParser.CompilationUnitContext> getCompilationUnits() throws IOException {
+
+
+  public Map<Path, JavaParser.CompilationUnitContext> getCompilationUnits() throws IOException {
     final Path sourceRoot = mModuleRoot.resolve(SOURCE_DIRECTORY);
     Preconditions.checkState(
         Files.isDirectory(sourceRoot),
@@ -70,14 +74,15 @@ public class Module {
     Files.walkFileTree(mModuleRoot, javaFileVisitor);
     final List<Path> javaFiles = javaFileVisitor.getJavaFiles();
 
-    final List<JavaParser.CompilationUnitContext> parsed = Lists.newArrayList();
+    final ImmutableMap.Builder<Path, JavaParser.CompilationUnitContext> mapBuilder =
+        ImmutableMap.builder();
     for (Path javaFile : javaFiles) {
       final Lexer lexer = new JavaLexer(new ANTLRFileStream(javaFile.toAbsolutePath().toString()));
       final CommonTokenStream tokens = new CommonTokenStream(lexer);
       final JavaParser parser = new JavaParser(tokens);
-      parsed.add(parser.compilationUnit());
+      mapBuilder.put(javaFile, parser.compilationUnit());
     }
-    return parsed;
+    return mapBuilder.build();
   }
 
   public BuildDefinition getBuildDefinition() {
