@@ -6,9 +6,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.logging.Logger;
 
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
@@ -20,47 +20,53 @@ import difflib.Patch;
 import robotoer.ast.java.JavaParser;
 import robotoer.project.Module;
 import robotoer.project.Workspace;
-import robotoer.util.JavaPrettyPrinter;
+import robotoer.util.JavaPrettyPrinter2;
 
 public class ReformatKiji {
+  private final static Logger LOG = Logger.getLogger(ReformatKiji.class.getName());
+
   public static void main(String[] args) throws IOException {
     // Fetch all arguments and sanitize them.
     final Path outputDirectory = Paths.get("/home/robert/reformatted-kiji");
     final Path kijiDirectory = Paths.get("/home/robert/kiji");
 
+    if (!Files.exists(outputDirectory)) {
+      Files.createDirectory(outputDirectory);
+    }
+
     // Get all java files from Kiji.
     final Workspace workspace = Workspace.fromPath(kijiDirectory);
     for (Module module : workspace.getModules()) {
-      for (Map.Entry<Path, JavaParser.CompilationUnitContext> entry
-          : module.getCompilationUnits().entrySet()) {
+      for (Map.Entry<Path, JavaParser> entry
+          : module.getParsedJava().entrySet()) {
         final Path javaFile = entry.getKey();
-        final JavaParser.CompilationUnitContext compilationUnit = entry.getValue();
+        final JavaParser parser = entry.getValue();
 
         // Reformat all java file.
         final List<String> before = Files.readAllLines(javaFile, Charset.forName("UTF-8"));
         final List<String> after =
-            ImmutableList.copyOf(JavaPrettyPrinter.format(compilationUnit).split("\\r?\\n"));
+            ImmutableList.copyOf(JavaPrettyPrinter2.prettyPrint(parser).split("\\r?\\n"));
 
         // Diff the before and after.
         final Patch<String> diff = DiffUtils.diff(before, after);
 
         // Output diff to a specified folder.
-        writeDiff(outputDirectory, diff);
+        final String outputFileName = javaFile
+            .toAbsolutePath()
+            .toString()
+            .replace("/", "_");
+        final Path outputFile = outputDirectory.resolve(outputFileName);
+        writeDiff(outputFile, diff);
+
+        LOG.info(String.format("Writing diff: %s to %s", diff, outputFile.toString()));
       }
     }
   }
 
   private static void writeDiff(
-      final Path outputDirectory,
+      final Path outputFile,
       final Patch<String> diff
   ) throws IOException {
-    if (Files.exists(outputDirectory)) {
-      Files.createDirectory(outputDirectory);
-    }
-    Preconditions.checkArgument(
-        Files.isDirectory(outputDirectory),
-        String.format("Output path must be a directory: %s", outputDirectory)
-    );
 
     final List<String> diffLines = Lists.transform(
         diff.getDeltas(),
@@ -72,6 +78,6 @@ public class ReformatKiji {
         }
     );
 
-    Files.write(outputDirectory, diffLines, Charset.forName("UTF-8"), StandardOpenOption.CREATE);
+    Files.write(outputFile, diffLines, Charset.forName("UTF-8"), StandardOpenOption.CREATE);
   }
 }

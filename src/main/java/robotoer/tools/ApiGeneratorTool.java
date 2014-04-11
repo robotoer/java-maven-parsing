@@ -10,6 +10,7 @@ import robotoer.ast.java.JavaLexer;
 import robotoer.ast.java.JavaParser;
 import robotoer.util.Api;
 import robotoer.util.JavaPrettyPrinter;
+import robotoer.util.JavaPrettyPrinter2;
 import robotoer.util.Operation;
 import robotoer.util.TypeOrClass;
 
@@ -21,10 +22,12 @@ public class ApiGeneratorTool {
     final Lexer lexer = new JavaLexer(new ANTLRFileStream(kijiInterfacePath));
     final CommonTokenStream tokens = new CommonTokenStream(lexer);
     final JavaParser parser = new JavaParser(tokens);
-    final JavaParser.CompilationUnitContext kijiInterface = parser.compilationUnit();
+//    final JavaParser.CompilationUnitContext kijiInterface = parser.compilationUnit();
 
-    ParseTreeWalker.DEFAULT.walk(new JavaPrettyPrinter(parser), kijiInterface);
+//    ParseTreeWalker.DEFAULT.walk(new JavaPrettyPrinter(parser), kijiInterface);
 //    System.out.println(kijiInterface.toStringTree(parser));
+    final String generatedCode = JavaPrettyPrinter2.prettyPrint(parser);
+    System.out.println(generatedCode);
 
     // Load an API.
     Operation.builder()

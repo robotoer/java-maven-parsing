@@ -278,9 +278,10 @@ public class VisibilityModifiers {
     );
     for (String project : projects) {
       final Module module = new Module(Paths.get("/home/ajprax/src/kiji/" + project));
-      final Map<Path, JavaParser.CompilationUnitContext> contexts = module.getCompilationUnits();
+      final Map<Path, JavaParser> contexts = module.getParsedJava();
       final Set<ClassAnnotationsTuple> classAnnotations = Sets.newHashSet();
-      for (JavaParser.CompilationUnitContext compilationUnitContext : contexts.values()) {
+      for (JavaParser parser : contexts.values()) {
+        final JavaParser.CompilationUnitContext compilationUnitContext = parser.compilationUnit();
         final String packageString = Joiner.on('.').join(Lists.transform(
             compilationUnitContext.packageDeclaration().qualifiedName().Identifier(),
             new TerminalNodeToText()));

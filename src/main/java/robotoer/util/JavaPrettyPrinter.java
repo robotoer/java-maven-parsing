@@ -15,7 +15,7 @@ public class JavaPrettyPrinter extends JavaBaseListener {
 
   private int mDepth = 0;
 
-  public JavaPrettyPrinter(JavaParser parser) {
+  public JavaPrettyPrinter(final JavaParser parser) {
     mParser = parser;
   }
 
@@ -116,6 +116,7 @@ public class JavaPrettyPrinter extends JavaBaseListener {
 //    ParseTreeWalker.DEFAULT.walk(new JavaPrettyPrinter(parser), kijiInterface);
 
     // Create a visitor that uses accept methods that produce strings?
+    return null;
   }
 
 

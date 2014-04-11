@@ -16,7 +16,7 @@
     <antlr4-maven-plugin.version>4.2</antlr4-maven-plugin.version>
     <maven-shade-plugin.version>2.2</maven-shade-plugin.version>
 
-    <antlr4.version>4.2</antlr4.version>
+    <antlr4.version>4.2.2</antlr4.version>
     <guava.version>16.0.1</guava.version>
     <diffutils.version>1.3.0</diffutils.version>
     <junit.version>4.11</junit.version>
@@ -67,6 +67,11 @@
             </goals>
           </execution>
         </executions>
+        <configuration>
+          <indentSize>2</indentSize>
+          <listener>true</listener>
+          <visitor>true</visitor>
+        </configuration>
       </plugin>
 
       <plugin>

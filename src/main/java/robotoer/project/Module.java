@@ -11,18 +11,19 @@ import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.List;
 import java.util.Map;
+import java.util.logging.Logger;
 
-import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Lists;
 import org.antlr.v4.runtime.ANTLRFileStream;
 import org.antlr.v4.runtime.CommonTokenStream;
 import org.antlr.v4.runtime.Lexer;
 import robotoer.ast.java.JavaLexer;
 import robotoer.ast.java.JavaParser;
+import robotoer.util.GlobDirectoryMatcher;
 
 public class Module {
+  private final static Logger LOG = Logger.getLogger(Module.class.getName());
   public static final Path SOURCE_DIRECTORY = Paths.get("src/main/java");
 
   private final Path mModuleRoot;
@@ -61,26 +62,33 @@ public class Module {
   }
 
 
+  public Map<Path, JavaParser> getParsedJava() throws IOException {
+    final PathMatcher srcDirMatcher = FileSystems.getDefault()
+        .getPathMatcher(String.format("glob:%s/src/main/java", mModuleRoot.toAbsolutePath()));
+    final PathMatcher nestedSrcDirMatcher = FileSystems.getDefault()
+        .getPathMatcher(String.format("glob:%s/*/src/main/java", mModuleRoot.toAbsolutePath()));
+    final List<Path> srcDirs = ImmutableList.<Path>builder()
+        .addAll(GlobDirectoryMatcher.find(mModuleRoot, srcDirMatcher))
+        .addAll(GlobDirectoryMatcher.find(mModuleRoot, nestedSrcDirMatcher))
+        .build();
 
-  public Map<Path, JavaParser.CompilationUnitContext> getCompilationUnits() throws IOException {
-    final Path sourceRoot = mModuleRoot.resolve(SOURCE_DIRECTORY);
-    Preconditions.checkState(
-        Files.isDirectory(sourceRoot),
-        "Source root (%s) is not a directory.",
-        SOURCE_DIRECTORY.toAbsolutePath().toString()
-    );
+    if (srcDirs.isEmpty()) {
+      LOG.warning(String.format("Did not find any source directories in %s", mModuleRoot));
+    }
 
-    final JavaFileVisitor javaFileVisitor = new JavaFileVisitor();
-    Files.walkFileTree(mModuleRoot, javaFileVisitor);
-    final List<Path> javaFiles = javaFileVisitor.getJavaFiles();
-
-    final ImmutableMap.Builder<Path, JavaParser.CompilationUnitContext> mapBuilder =
+    final ImmutableMap.Builder<Path, JavaParser> mapBuilder =
         ImmutableMap.builder();
-    for (Path javaFile : javaFiles) {
-      final Lexer lexer = new JavaLexer(new ANTLRFileStream(javaFile.toAbsolutePath().toString()));
-      final CommonTokenStream tokens = new CommonTokenStream(lexer);
-      final JavaParser parser = new JavaParser(tokens);
-      mapBuilder.put(javaFile, parser.compilationUnit());
+    for (Path srcDir : srcDirs) {
+      final JavaFileVisitor javaFileVisitor = new JavaFileVisitor();
+      Files.walkFileTree(srcDir, javaFileVisitor);
+      final List<Path> javaFiles = javaFileVisitor.getJavaFiles();
+
+      for (Path javaFile : javaFiles) {
+        final Lexer lexer = new JavaLexer(new ANTLRFileStream(javaFile.toAbsolutePath().toString()));
+        final CommonTokenStream tokens = new CommonTokenStream(lexer);
+        final JavaParser parser = new JavaParser(tokens);
+        mapBuilder.put(javaFile, parser);
+      }
     }
     return mapBuilder.build();
   }
