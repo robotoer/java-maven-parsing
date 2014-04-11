@@ -8,11 +8,7 @@ import org.antlr.v4.runtime.Lexer;
 import org.antlr.v4.runtime.tree.ParseTreeWalker;
 import robotoer.ast.java.JavaLexer;
 import robotoer.ast.java.JavaParser;
-import robotoer.util.Api;
-import robotoer.util.JavaPrettyPrinter;
-import robotoer.util.JavaPrettyPrinter2;
-import robotoer.util.Operation;
-import robotoer.util.TypeOrClass;
+import robotoer.util.*;
 
 public class ApiGeneratorTool {
   public static void main(String[] args) throws IOException {
@@ -26,7 +22,8 @@ public class ApiGeneratorTool {
 
 //    ParseTreeWalker.DEFAULT.walk(new JavaPrettyPrinter(parser), kijiInterface);
 //    System.out.println(kijiInterface.toStringTree(parser));
-    final String generatedCode = JavaPrettyPrinter2.prettyPrint(parser);
+//    final String generatedCode = JavaPrettyPrinter2.prettyPrint(parser);
+    final String generatedCode = JavaPrettyPrinter3.prettyPrint(parser);
     System.out.println(generatedCode);
 
     // Load an API.
